@@ -74,7 +74,7 @@ app.get('/api/uplaod_kindex', (req, res) => {
 mongoose.connect(process.env.mongo_connection_string)
 .then(() => {
     console.log('Connected!');
-    app.listen(3000, () => {
+    app.listen(process.env.PORT, () => {
         console.log('server is running on 3000')
     });
 }).catch(() => {
