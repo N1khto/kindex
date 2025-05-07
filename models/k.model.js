@@ -44,8 +44,24 @@ const SimpleKmodelSchema = mongoose.Schema(
     }
 );
 
+const SimpleKmodelSchema3d = mongoose.Schema(
+    {
+        date: {
+            type: Date,
+            required: true
+        },
+        value: {
+            type: Number,
+            required: true
+        }
+    },
+    {
+        timestamp: true
+    }
+);
+
 const Kmodel = mongoose.model("Kmodel", KmodelSchema);
 const SimpleKmodel = mongoose.model("SimpleKmodel", SimpleKmodelSchema);
+const SimpleKmodel3d = mongoose.model("SimpleKmodel3d", SimpleKmodelSchema3d);
 
-module.exports = Kmodel;
-module.exports = SimpleKmodel;
+module.exports = { Kmodel, SimpleKmodel, SimpleKmodel3d }
