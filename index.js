@@ -69,6 +69,41 @@ app.get('/api/uplaod_kindex', (req, res) => {
     );
 });
 
+function make_date(date_string) {
+    const event = new Date(Date.parse(date_string))
+    const current_year = new Date().getFullYear()
+    event.setUTCFullYear(current_year)
+    const event_utc = new Date(event.getTime() - event.getTimezoneOffset() * 60000)
+    return event_utc
+
+}
+
+app.get('/api/kindex/update_3d', (req, res) => {
+    try {
+        request(
+            "https://services.swpc.noaa.gov/text/3-day-forecast.txt",
+            (err, response, body) => {
+                if (err)
+                    return res.status(500).send({message: err});
+                const dates = body.split("\n")[13].trim(" ").split("       ")
+                console.log(dates)
+
+                const utc_date_objs = []
+                for (let i = 0; i < dates.length; i++) {
+                    utc_date_objs.push(make_date(dates[i]));
+                }
+
+                console.log(utc_date_objs[0])
+                
+
+                return res.send(body.split("\n").slice(13,22));
+            }
+        );
+    } catch (error) {
+        res.status(500).json({message: error.message});
+    }
+});
+
 mongoose.connect(process.env.mongo_connection_string)
 .then(() => {
     console.log('Connected!');
