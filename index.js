@@ -78,25 +78,49 @@ function make_date(date_string) {
 
 }
 
-app.get('/api/kindex/update_3d', (req, res) => {
+app.get('/api/kindex/wide_3d', (req, res) => {
     try {
         request(
             "https://services.swpc.noaa.gov/text/3-day-forecast.txt",
             (err, response, body) => {
                 if (err)
                     return res.status(500).send({message: err});
-                const dates = body.split("\n")[13].trim(" ").split("       ")
+                const the_day_forecast = body.split("\n")
+                const dates = the_day_forecast[13].trim(" ").split("       ")
                 console.log(dates)
 
-                const utc_date_objs = []
-                for (let i = 0; i < dates.length; i++) {
-                    utc_date_objs.push(make_date(dates[i]));
+                // const utc_date_objs = []
+                // for (let i = 0; i < dates.length; i++) {
+                //     utc_date_objs.push(make_date(dates[i]));
+                // }
+                // console.log(utc_date_objs)
+
+                const kindex_nums = []
+                for (let i = 14; i < 22; i++) {
+                    let str = the_day_forecast[i];
+                    let matches = str.match(/\d+(\.\d+)/g);
+                    kindex_nums.push(matches);
                 }
+                console.log(kindex_nums)
 
-                console.log(utc_date_objs[0])
-                
+                kindex_nums_by_days = []
+                for (let i = 0; i < 3; i++) {
+                    let temp = []
+                    for (let j = 0; j < kindex_nums.length; j++) {
+                        temp.push(parseFloat(kindex_nums[j][i]))
+                    }
+                    kindex_nums_by_days.push(temp)
+                }
+                console.log(kindex_nums_by_days)
 
-                return res.send(body.split("\n").slice(13,22));
+                // const complete_data = []
+                // for (let i = 0; i < utc_date_objs.length; i++) {
+                //     for (let j = 0; j < 22; j+=3) {
+                //         console.log(utc_date_objs[i], j)
+                //     }
+                // }
+
+                return res.send(kindex_nums_by_days);
             }
         );
     } catch (error) {
