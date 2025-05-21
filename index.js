@@ -47,26 +47,16 @@ app.get('/api/kindex/27d', async (req, res) => {
 
 app.post('/api/kindex', async (req, res) => {
     try {
-        const k_model = await Model.SimpleKmodel.create(req.body);
-        res.status(201).json(k_model)
+        for (let i = 0; i < req.body.length; i++) {
+            const filter = { date: req.body[i].date };
+            const update = req.body[i];
+            await Model.SimpleKmodel.findOneAndUpdate(filter, update, { upsert: true })
+        }
+        res.status(201).json(req.body)
     } catch (error) {
+        console.log(error)
         res.status(500).json({message: error.message});
     }
-});
-
-app.get('/api/uplaod_kindex', (req, res) => {
-    request(
-        process.env.upload_request,
-        (err, response, body) => {
-            if (err)
-                return res
-                    .status(500)
-                    .send({message: err});
-            console.log(JSON.parse(body).data[0].coordinates[0].dates);
-            
-            return res.send(JSON.parse(body).data[0].coordinates[0].dates);
-        }
-    );
 });
 
 function make_date(date_string) {
@@ -151,6 +141,32 @@ app.get('/api/kindex/direct_27d', (req, res) => {
                     start_date: start_date,
                     kindex_nums: kindex_nums
                 });
+            }
+        );
+    } catch (error) {
+        res.status(500).json({message: error.message});
+    }
+});
+
+app.get('/api/uplaod_kindex', (req, res) => {
+    try {
+        request(
+            "https://services.swpc.noaa.gov/text/27-day-outlook.txt",
+            (err, response, body) => {
+                if (err)
+                    return res.status(500).send({message: err});
+                const the_day_forecast = body.split("\n")
+                
+                objects_to_add = []
+                for (let i = 11; i < 38; i++) {
+                    let str = the_day_forecast[i];
+                    let matches = str.match(/\d+/g);
+                    let value = matches[matches.length - 1]
+                    let date = make_date((the_day_forecast[i].slice(0, 11)))
+                    objects_to_add.push({date: date, value: value})
+                }
+                
+                return res.send(objects_to_add);
             }
         );
     } catch (error) {
