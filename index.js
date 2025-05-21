@@ -87,7 +87,6 @@ app.get('/api/kindex/wide_3d', (req, res) => {
                     return res.status(500).send({message: err});
                 const the_day_forecast = body.split("\n")
                 const dates = the_day_forecast[13].trim(" ").split("       ")
-                console.log(dates)
 
                 // const utc_date_objs = []
                 // for (let i = 0; i < dates.length; i++) {
@@ -101,7 +100,6 @@ app.get('/api/kindex/wide_3d', (req, res) => {
                     let matches = str.match(/\d+(\.\d+)/g);
                     kindex_nums.push(matches);
                 }
-                console.log(kindex_nums)
 
                 kindex_nums_by_days = []
                 for (let i = 0; i < 3; i++) {
@@ -111,7 +109,8 @@ app.get('/api/kindex/wide_3d', (req, res) => {
                     }
                     kindex_nums_by_days.push(temp)
                 }
-                console.log(kindex_nums_by_days)
+
+                const start_date = make_date(dates[0])
 
                 // const complete_data = []
                 // for (let i = 0; i < utc_date_objs.length; i++) {
@@ -120,7 +119,38 @@ app.get('/api/kindex/wide_3d', (req, res) => {
                 //     }
                 // }
 
-                return res.send(kindex_nums_by_days);
+                return res.send({
+                    start_date: start_date,
+                    kindex_nums: kindex_nums_by_days
+                });
+            }
+        );
+    } catch (error) {
+        res.status(500).json({message: error.message});
+    }
+});
+
+app.get('/api/kindex/direct_27d', (req, res) => {
+    try {
+        request(
+            "https://services.swpc.noaa.gov/text/27-day-outlook.txt",
+            (err, response, body) => {
+                if (err)
+                    return res.status(500).send({message: err});
+                const the_day_forecast = body.split("\n")
+
+                const kindex_nums = []
+                for (let i = 11; i < 38; i++) {
+                    let str = the_day_forecast[i];
+                    let matches = str.match(/\d+/g);
+                    kindex_nums.push(parseInt(matches[matches.length - 1]));
+                }
+                const start_date = make_date(the_day_forecast[11].slice(0, 11))
+
+                return res.send({
+                    start_date: start_date,
+                    kindex_nums: kindex_nums
+                });
             }
         );
     } catch (error) {
