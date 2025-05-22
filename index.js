@@ -33,28 +33,16 @@ app.get('/api/kindex/3d', async (req, res) => {
 
 app.get('/api/kindex/27d', async (req, res) => {
     try {
-        const timeElapsed = Date.now();
-        const today = new Date(timeElapsed);
-        today.setHours(3,0,0,0);
-        const k_model = await Model.SimpleKmodel.find({date:{
-            $gte: today
-        }}).limit(27).sort({date: 1});
+        // const timeElapsed = Date.now();
+        // const today = new Date(timeElapsed);
+        // today.setHours(3,0,0,0);
+        // const k_model = await Model.SimpleKmodel.find({date:{
+        //     $gte: today
+        // }}).limit(27).sort({date: 1});
+        const k_model = await Model.SimpleKmodel.find().sort({date: -1}).limit(27);
+        k_model.reverse()
         res.status(200).json(k_model)
     } catch (error) {
-        res.status(500).json({message: error.message});
-    }
-});
-
-app.post('/api/kindex', async (req, res) => {
-    try {
-        for (let i = 0; i < req.body.length; i++) {
-            const filter = { date: req.body[i].date };
-            const update = req.body[i];
-            await Model.SimpleKmodel.findOneAndUpdate(filter, update, { upsert: true })
-        }
-        res.status(201).json(req.body)
-    } catch (error) {
-        console.log(error)
         res.status(500).json({message: error.message});
     }
 });
@@ -67,6 +55,24 @@ function make_date(date_string) {
     return event_utc
 
 }
+
+async function create_or_update(body) {
+    for (let i = 0; i < body.length; i++) {
+        const filter = { date: body[i].date };
+        const update = body[i];
+        await Model.SimpleKmodel.findOneAndUpdate(filter, update, { upsert: true })
+    }
+}
+
+app.post('/api/kindex', async (req, res) => {
+    try {
+        await create_or_update(req.body)
+        res.status(201).json(req.body)
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({message: error.message});
+    }
+});
 
 app.get('/api/kindex/wide_3d', (req, res) => {
     try {
@@ -166,6 +172,8 @@ app.get('/api/uplaod_kindex', (req, res) => {
                     objects_to_add.push({date: date, value: value})
                 }
                 
+                create_or_update(objects_to_add)
+
                 return res.send(objects_to_add);
             }
         );
