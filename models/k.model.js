@@ -32,7 +32,9 @@ const SimpleKmodelSchema = mongoose.Schema(
     {
         date: {
             type: Date,
-            required: true
+            index: true,
+            unique: true,
+            required: true,
         },
         value: {
             type: Number,
