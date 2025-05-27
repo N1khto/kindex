@@ -39,7 +39,7 @@ app.get('/api/kindex/27d', async (req, res) => {
         // const k_model = await Model.SimpleKmodel.find({date:{
         //     $gte: today
         // }}).limit(27).sort({date: 1});
-        const k_model = await Model.SimpleKmodel.find().sort({date: -1}).limit(27);
+        const k_model = await Model.SimpleKmodel.find().sort({date: -1}).limit(28);
         k_model.reverse()
         res.status(200).json(k_model)
     } catch (error) {
@@ -47,6 +47,11 @@ app.get('/api/kindex/27d', async (req, res) => {
     }
 });
 
+
+/**
+ * func that are creating date ISOString with current year
+ * from date strings (e.g. "May 4")
+ */
 function make_date(date_string) {
     const event = new Date(Date.parse(date_string))
     const current_year = new Date().getFullYear()
@@ -56,6 +61,12 @@ function make_date(date_string) {
 
 }
 
+
+/**
+ * this func will create new forecast object or update it if 
+ * there is one for this unique date
+ * @param {*} body - array with kindex forecast info 
+ */
 async function create_or_update(body) {
     for (let i = 0; i < body.length; i++) {
         const filter = { date: body[i].date };
