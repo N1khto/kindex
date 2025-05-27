@@ -2,11 +2,16 @@ const express = require('express');
 const mongoose = require('mongoose');
 const request = require('request');
 const Model = require('./models/k.model.js');
-require('dotenv').config()
+const cron = require('cron');
+require('dotenv').config();
+
 const app = express()
-
 app.use(express.json());
+const cronJobs = [];
 
+process.on('SIGTERM', () => {
+    cronJobs.forEach(cronJob => cronJob.stop());
+});
 
 app.get('/api/kindex', async (req, res) => {
     try {
@@ -165,15 +170,19 @@ app.get('/api/kindex/direct_27d', (req, res) => {
     }
 });
 
-app.get('/api/uplaod_kindex', (req, res) => {
-    try {
-        request(
-            "https://services.swpc.noaa.gov/text/27-day-outlook.txt",
-            (err, response, body) => {
-                if (err)
-                    return res.status(500).send({message: err});
+/**
+ * func for retrieving data from the source
+ * @param {*} res - response obj for api get request, optional
+ */
+function update_from_source_27d(res) {
+    request(
+        "https://services.swpc.noaa.gov/text/27-day-outlook.txt",
+        (err, response, body) => {
+            if (err)
+                return res.status(500).send({message: err});
+            try {
                 const the_day_forecast = body.split("\n")
-                
+            
                 objects_to_add = []
                 for (let i = 11; i < 38; i++) {
                     let str = the_day_forecast[i];
@@ -182,16 +191,37 @@ app.get('/api/uplaod_kindex', (req, res) => {
                     let date = make_date((the_day_forecast[i].slice(0, 11)))
                     objects_to_add.push({date: date, value: value})
                 }
-                
                 create_or_update(objects_to_add)
 
-                return res.send(objects_to_add);
+
+                if (typeof res !== "undefined") {
+                    return res.send(objects_to_add);
+                }
+            } catch (error) {
+                res.status(500).json({message: error.message});
             }
-        );
+        }
+    );
+}
+
+app.get('/api/uplaod_kindex', (req, res) => {
+    try {
+        update_from_source_27d(res)
     } catch (error) {
         res.status(500).json({message: error.message});
     }
 });
+
+cronJobs.push(
+    new cron.CronJob(
+        '0 0 * * * *', // Schedule: Every day at 00:00
+        () => {
+            update_from_source_27d();
+        },
+        null,
+        true
+    )
+);
 
 mongoose.connect(process.env.mongo_connection_string)
 .then(() => {
