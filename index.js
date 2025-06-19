@@ -22,28 +22,8 @@ app.get('/api/kindex', async (req, res) => {
     }
 });
 
-app.get('/api/kindex/3d', async (req, res) => {
-    try {
-        const timeElapsed = Date.now();
-        const today = new Date(timeElapsed);
-        today.setHours(3,0,0,0);
-        const k_model = await Model.SimpleKmodel.find({date:{
-            $gte: today
-        }}).limit(3).sort({date: 1});
-        res.status(200).json(k_model)
-    } catch (error) {
-        res.status(500).json({message: error.message});
-    }
-});
-
 app.get('/api/kindex/27d', async (req, res) => {
     try {
-        // const timeElapsed = Date.now();
-        // const today = new Date(timeElapsed);
-        // today.setHours(3,0,0,0);
-        // const k_model = await Model.SimpleKmodel.find({date:{
-        //     $gte: today
-        // }}).limit(27).sort({date: 1});
         const k_model = await Model.SimpleKmodel.find().sort({date: -1}).limit(28);
         k_model.reverse()
         res.status(200).json(k_model)
@@ -66,7 +46,6 @@ function make_date(date_string) {
 
 }
 
-
 /**
  * this func will create new forecast object or update it if 
  * there is one for this unique date
@@ -80,6 +59,14 @@ async function create_or_update(body) {
     }
 }
 
+async function create_or_update_3d(body) {
+    for (let i = 0; i < body.length; i++) {
+        const filter = { date: body[i].date };
+        const update = body[i];
+        await Model.SimpleKmodel3d.findOneAndUpdate(filter, update, { upsert: true })
+    }
+}
+
 app.post('/api/kindex', async (req, res) => {
     try {
         await create_or_update(req.body)
@@ -90,7 +77,7 @@ app.post('/api/kindex', async (req, res) => {
     }
 });
 
-app.get('/api/kindex/wide_3d', (req, res) => {
+app.get('/api/kindex/direct_3d', (req, res) => {
     try {
         request(
             "https://services.swpc.noaa.gov/text/3-day-forecast.txt",
@@ -99,12 +86,6 @@ app.get('/api/kindex/wide_3d', (req, res) => {
                     return res.status(500).send({message: err});
                 const the_day_forecast = body.split("\n")
                 const dates = the_day_forecast[13].trim(" ").split("       ")
-
-                // const utc_date_objs = []
-                // for (let i = 0; i < dates.length; i++) {
-                //     utc_date_objs.push(make_date(dates[i]));
-                // }
-                // console.log(utc_date_objs)
 
                 const kindex_nums = []
                 for (let i = 14; i < 22; i++) {
@@ -124,19 +105,31 @@ app.get('/api/kindex/wide_3d', (req, res) => {
 
                 const start_date = make_date(dates[0])
 
-                // const complete_data = []
-                // for (let i = 0; i < utc_date_objs.length; i++) {
-                //     for (let j = 0; j < 22; j+=3) {
-                //         console.log(utc_date_objs[i], j)
-                //     }
-                // }
-
                 return res.send({
                     start_date: start_date,
                     kindex_nums: kindex_nums_by_days
                 });
             }
         );
+    } catch (error) {
+        res.status(500).json({message: error.message});
+    }
+});
+
+app.get('/api/kindex/3d', async (req, res) => {
+    try {
+        const k_model_3d = await Model.SimpleKmodel3d.find({}).select({ date: 1, value: 1, _id: 0 }).sort({date: -1}).limit(4);
+        k_model_3d.reverse()
+        response_data = {
+            "start_date": k_model_3d[0].date,
+            "kindex_nums": [
+                k_model_3d[0].value,
+                k_model_3d[1].value,
+                k_model_3d[2].value,
+                k_model_3d[3].value,
+            ]
+        }
+        res.status(200).json(response_data)
     } catch (error) {
         res.status(500).json({message: error.message});
     }
@@ -193,7 +186,6 @@ function update_from_source_27d(res) {
                 }
                 create_or_update(objects_to_add)
 
-
                 if (typeof res !== "undefined") {
                     return res.send(objects_to_add);
                 }
@@ -204,9 +196,60 @@ function update_from_source_27d(res) {
     );
 }
 
+function update_from_source_3d(res) {
+    request(
+        "https://services.swpc.noaa.gov/text/3-day-forecast.txt",
+        (err, response, body) => {
+            if (err)
+                return res.status(500).send({message: err});
+            try {
+                const the_day_forecast = body.split("\n")
+                const dates = the_day_forecast[13].trim(" ").split("       ")
+
+                const utc_date_objs = []
+                for (let i = 0; i < dates.length; i++) {
+                    utc_date_objs.push(make_date(dates[i]));
+                }
+
+                const kindex_nums = []
+                for (let i = 14; i < 22; i++) {
+                    let str = the_day_forecast[i];
+                    let matches = str.match(/\d+(\.\d+)/g);
+                    kindex_nums.push(matches);
+                }
+
+                kindex_nums_by_days = []
+                for (let i = 0; i < 3; i++) {
+                    let temp = []
+                    for (let j = 0; j < kindex_nums.length; j++) {
+                        temp.push(parseFloat(kindex_nums[j][i]))
+                    }
+                    kindex_nums_by_days.push(temp)
+                }
+
+                objects_to_add = []
+                for (let i = 0; i < 3; i++) {
+                    let value = kindex_nums_by_days[i]
+                    let date = utc_date_objs[i]
+                    objects_to_add.push({date: date, value: value})
+                }
+
+                create_or_update_3d(objects_to_add)
+                
+                if (typeof res !== "undefined") {
+                    return res.send(objects_to_add);
+                }
+            } catch (error) {
+                res.status(500).json({message: error.message});
+            }
+        }
+    )
+}
+
 app.get('/api/uplaod_kindex', (req, res) => {
     try {
-        update_from_source_27d(res)
+        update_from_source_27d();
+        update_from_source_3d(res);
     } catch (error) {
         res.status(500).json({message: error.message});
     }
@@ -214,9 +257,10 @@ app.get('/api/uplaod_kindex', (req, res) => {
 
 cronJobs.push(
     new cron.CronJob(
-        '0 0 * * * *', // Schedule: Every day at 00:00
+        '0 * * * *', // Schedule: Hourly
         () => {
             update_from_source_27d();
+            update_from_source_3d();
         },
         null,
         true
