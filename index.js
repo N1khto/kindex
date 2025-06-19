@@ -185,7 +185,6 @@ function update_from_source_27d(res) {
                     objects_to_add.push({date: date, value: value})
                 }
                 create_or_update(objects_to_add)
-                console.log(objects_to_add)
 
                 if (typeof res !== "undefined") {
                     return res.send(objects_to_add);
@@ -236,7 +235,6 @@ function update_from_source_3d(res) {
                 }
 
                 create_or_update_3d(objects_to_add)
-                console.log(objects_to_add)
                 
                 if (typeof res !== "undefined") {
                     return res.send(objects_to_add);
