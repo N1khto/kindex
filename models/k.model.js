@@ -50,10 +50,12 @@ const SimpleKmodelSchema3d = mongoose.Schema(
     {
         date: {
             type: Date,
-            required: true
+            index: true,
+            unique: true,
+            required: true,
         },
         value: {
-            type: Number,
+            type: Array,
             required: true
         }
     },
